@@ -1,12 +1,10 @@
-use std::{collections::HashMap, error::Error};
-
-use sqlx::{pool, Pool, Postgres};
+use sqlx::{ Pool, Postgres};
 
 use serde::{Deserialize, Serialize};
 
 use crate::models::{
     dub::Dub,
-    episode::{self, Episode},
+    episode::{Episode},
     releases::{Release, ReleaseType},
 };
 

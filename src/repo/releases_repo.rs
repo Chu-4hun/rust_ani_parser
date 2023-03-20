@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use sqlx::{Pool, Postgres};
 
 use crate::models::{dub::Dub, episode::Episode, releases::*};

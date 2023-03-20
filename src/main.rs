@@ -1,6 +1,6 @@
 use dotenv::dotenv;
 use parsers::anixart_parser::*;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use sqlx::{postgres::PgPoolOptions};
 
 pub mod models;
 pub mod parser;
@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("Error building a connection pool");
 
-   print!("{} new episodes",parse_anixart( 18678, &pool).await);
+   print!("{} new episodes",parse_anixart( 2128, &pool).await);
 
     Ok(())
 }
