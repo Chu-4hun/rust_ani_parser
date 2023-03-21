@@ -26,19 +26,18 @@ pub struct DubVariant {
     pub view_count: i32,
 }
 
-pub async fn parse_anixart(release_id: i32, db: &Pool<Postgres>) -> usize {
+pub async fn parse_anixart(release_id: i32, db: &Pool<Postgres>) -> Result<usize, Box<dyn std::error::Error>> {
     let ani_release = get_release(release_id)
         .await
         .expect("Get releases function broke");
 
     let mut release = get_release_by_id(release_id)
-        .await
-        .expect("insert release failed");
+        .await?;
     if release.is_unique(&db).await.unwrap(){
         release = release.insert(&db).await.unwrap()
     }
     else{
-        release = Release::get_by_external_id(release.external_id.to_string(),&db).await.unwrap();
+        Err("Release already exist")?
     }
     
 
@@ -60,7 +59,7 @@ pub async fn parse_anixart(release_id: i32, db: &Pool<Postgres>) -> usize {
             }
         }
     }
-    i
+    Ok(i)
 }
 
 pub async fn get_release(id: i32) -> Result<AnixartRelease, Box<dyn std::error::Error>> {
@@ -89,22 +88,25 @@ pub async fn get_release_by_id(id: i32) -> Result<Release, Box<dyn std::error::E
     let _json: serde_json::Value =
         serde_json::from_str(resp.as_str()).expect("JSON was not well-formatted");
 
+    if _json["release"].is_null() {
+        return Err("empty release")?;
+    }
     let release = Release {
         id: None,
         release_type: ReleaseType::Animation,
-        release_name: _json["release"]["title_ru"].to_string(),
+        release_name: _json["release"]["title_ru"].to_string().replace("/", "").replace('"', ""),
         release_date: None,
         rating: 0.0,
         min_age: _json["release"]["age_rating"]
             .as_i64()
-            .unwrap()
+            .unwrap_or(0)
             .try_into()
             .unwrap_or(0),
-        director: _json["release"]["director"].to_string(),
-        author: _json["release"]["author"].to_string(),
-        studio: _json["release"]["studio"].to_string(),
-        description: _json["release"]["description"].to_string(),
-        img: _json["release"]["image"].to_string(),
+        director: _json["release"]["director"].to_string().replace("/", "").replace('"', ""),
+        author: _json["release"]["author"].to_string().replace("/", "").replace('"', ""),
+        studio: _json["release"]["studio"].to_string().replace("/", "").replace('"', ""),
+        description: _json["release"]["description"].to_string().replace("/", "").replace('"', ""),
+        img: _json["release"]["image"].to_string().replace("/", "").replace('"', ""),
         external_id: id.to_string(),
     };
     Ok(release)
@@ -128,7 +130,7 @@ pub async fn get_kodik_sources(
     for s in json["sources"].as_array().unwrap() {
         if s["name"] == "Kodik" {
             ids.push(s["id"].as_i64().unwrap());
-            // print!("{} - {} - {}\n", s["id"], s["name"], s["type"]["name"])
+            print!("{} - {} - {}\n", s["id"], s["name"], s["type"]["name"])
         }
     }
     Ok(ids)
@@ -152,13 +154,13 @@ pub async fn get_episodes(
     for s in json["episodes"].as_array().unwrap() {
         episodes.push(Episode {
             release_fk: release_id,
-            ep_name: s["name"].to_string(),
-            url: s["url"].to_string(),
+            ep_name: s["name"].to_string().replace("/", "").replace('"', ""),
+            url: s["url"].to_string().replace("/", "").replace('"', ""),
             id: None,
             dub_fk: id,
             position: s["position"].as_i64().unwrap().try_into().unwrap_or(0),
         });
-        println!("{}", s["name"]);
+        // println!("{}", s["name"]);
     }
 
     Ok(episodes)
