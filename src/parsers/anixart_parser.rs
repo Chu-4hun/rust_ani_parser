@@ -1,10 +1,10 @@
-use sqlx::{ Pool, Postgres};
+use sqlx::{Pool, Postgres};
 
 use serde::{Deserialize, Serialize};
 
 use crate::models::{
     dub::Dub,
-    episode::{Episode},
+    episode::Episode,
     releases::{Release, ReleaseType},
 };
 
@@ -26,24 +26,24 @@ pub struct DubVariant {
     pub view_count: i32,
 }
 
-pub async fn parse_anixart(release_id: i32, db: &Pool<Postgres>) -> Result<usize, Box<dyn std::error::Error>> {
+pub async fn parse_anixart(
+    release_id: i32,
+    db: &Pool<Postgres>,
+) -> Result<usize, Box<dyn std::error::Error>> {
     let ani_release = get_release(release_id)
         .await
         .expect("Get releases function broke");
 
-    let mut release = get_release_by_id(release_id)
-        .await?;
-    if release.is_unique(&db).await.unwrap(){
+    let mut release = get_release_by_id(release_id).await?;
+    if release.is_unique(&db).await.unwrap() {
         release = release.insert(&db).await.unwrap()
-    }
-    else{
+    } else {
         Err("Release already exist")?
     }
-    
 
     let mut i: usize = 0;
     for dub_variant in ani_release.types {
-        let dub_id:i32 = add_dubs_to_db(&dub_variant, &db).await.unwrap().id;
+        let dub_id: i32 = add_dubs_to_db(&dub_variant, &db).await.unwrap().id;
         for source_id in get_kodik_sources(release_id, dub_variant.type_id)
             .await
             .expect("get_kodik_sources failed")
@@ -94,7 +94,10 @@ pub async fn get_release_by_id(id: i32) -> Result<Release, Box<dyn std::error::E
     let release = Release {
         id: None,
         release_type: ReleaseType::Animation,
-        release_name: _json["release"]["title_ru"].to_string().replace("/", "").replace('"', ""),
+        release_name: _json["release"]["title_ru"]
+            .to_string()
+            .replace("/", "")
+            .replace('"', ""),
         release_date: None,
         rating: 0.0,
         min_age: _json["release"]["age_rating"]
@@ -102,16 +105,33 @@ pub async fn get_release_by_id(id: i32) -> Result<Release, Box<dyn std::error::E
             .unwrap_or(0)
             .try_into()
             .unwrap_or(0),
-        director: _json["release"]["director"].to_string().replace("/", "").replace('"', ""),
-        author: _json["release"]["author"].to_string().replace("/", "").replace('"', ""),
-        studio: _json["release"]["studio"].to_string().replace("/", "").replace('"', ""),
-        description: _json["release"]["description"].to_string().replace("/", "").replace('"', ""),
-        img: _json["release"]["image"].to_string().replace("/", "").replace('"', ""),
+        director: _json["release"]["director"]
+            .to_string()
+            .replace("/", "")
+            .replace('"', ""),
+        author: _json["release"]["author"]
+            .to_string()
+            .replace("/", "")
+            .replace('"', ""),
+        studio: _json["release"]["studio"]
+            .to_string()
+            .replace("/", "")
+            .replace('"', ""),
+        description: _json["release"]["description"]
+            .to_string()
+            .replace("/", "")
+            .replace('"', ""),
+        img: _json["release"]["image"].to_string().replace('"', ""),
         external_id: id.to_string(),
     };
     Ok(release)
 }
-
+fn rem_first_and_last(value: &str) -> &str {
+    let mut chars = value.chars();
+    chars.next();
+    chars.next_back();
+    chars.as_str()
+}
 pub async fn get_kodik_sources(
     release_id: i32,
     id: i32,
@@ -155,7 +175,9 @@ pub async fn get_episodes(
         episodes.push(Episode {
             release_fk: release_id,
             ep_name: s["name"].to_string().replace("/", "").replace('"', ""),
-            url: s["url"].to_string().replace("/", "").replace('"', ""),
+            url: rem_first_and_last(s["url"].as_str().unwrap_or("default"))
+                .to_string()
+                .replace('"', ""),
             id: None,
             dub_fk: id,
             position: s["position"].as_i64().unwrap().try_into().unwrap_or(0),
